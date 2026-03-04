@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SkipBack, Play, Pause, SkipForward } from "lucide-react";
 import { useTimelineStore } from "@/store/timelineStore";
 import { usePlayback } from "@/hooks/usePlayback";
 import { getMediaUrl } from "@/lib/api";
@@ -99,24 +100,27 @@ export default function PreviewPanel({ jobId }: Props) {
       </div>
 
       {/* Controls */}
-      <div className="flex justify-center gap-3">
+      <div className="flex justify-center items-center gap-2">
         <button
           onClick={() => seek(0)}
-          className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded bg-gray-800"
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+          title="Rewind to start"
         >
-          |&lt;
+          <SkipBack size={18} />
         </button>
         <button
           onClick={isPlaying ? pause : play}
-          className="text-sm font-semibold text-white px-4 py-1.5 rounded bg-pink-600 hover:bg-pink-500"
+          className="p-2.5 rounded-full text-white bg-pink-600 hover:bg-pink-500 transition-colors"
+          title={isPlaying ? "Pause" : "Play"}
         >
-          {isPlaying ? "Pause" : "Play"}
+          {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
         <button
           onClick={() => seek(timeline?.total_duration_s ?? 0)}
-          className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded bg-gray-800"
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+          title="Skip to end"
         >
-          &gt;|
+          <SkipForward size={18} />
         </button>
       </div>
     </div>

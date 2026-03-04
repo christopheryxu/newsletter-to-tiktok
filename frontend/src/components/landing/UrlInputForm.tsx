@@ -6,7 +6,6 @@ import { startPipeline } from "@/lib/api";
 
 export default function UrlInputForm() {
   const [url, setUrl] = useState("");
-  const [voiceId, setVoiceId] = useState("Rachel");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -17,7 +16,7 @@ export default function UrlInputForm() {
     if (!url.trim()) return;
     setLoading(true);
     try {
-      const { job_id } = await startPipeline(url.trim(), voiceId);
+      const { job_id } = await startPipeline(url.trim(), "Rachel");
       router.push(`/editor/${job_id}`);
     } catch (err) {
       setError(String(err));
@@ -38,26 +37,10 @@ export default function UrlInputForm() {
           placeholder="https://example.substack.com/p/your-post"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="w-full rounded-lg bg-gray-800 border border-gray-600 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+          className="w-full rounded-lg bg-gray-800 border border-gray-600 px-4 py-3 text-white placeholder-gray-500 transition-colors duration-300 hover:bg-gray-700 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="voice" className="text-sm font-medium text-gray-300">
-          Voice
-        </label>
-        <select
-          id="voice"
-          value={voiceId}
-          onChange={(e) => setVoiceId(e.target.value)}
-          className="rounded-lg bg-gray-800 border border-gray-600 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-        >
-          <option value="Rachel">Rachel (Female)</option>
-          <option value="Adam">Adam (Male)</option>
-          <option value="Antoni">Antoni (Male)</option>
-          <option value="Josh">Josh (Male)</option>
-        </select>
-      </div>
 
       {error && (
         <p className="text-red-400 text-sm rounded bg-red-900/30 px-3 py-2">{error}</p>

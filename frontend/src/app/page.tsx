@@ -8,8 +8,8 @@ export default function HomePage() {
           Newsletter → TikTok
         </h1>
         <p className="text-gray-400 max-w-md">
-          Paste any newsletter URL and we&apos;ll generate a ready-to-post 9:16 TikTok video with
-          AI voiceover, stock footage, and subtitles.
+          Paste any newsletter URL and we&apos;ll generate a ready-to-post TikTok video with
+          AI generated video, voiceover, and subtitles.
         </p>
       </div>
       <UrlInputForm />

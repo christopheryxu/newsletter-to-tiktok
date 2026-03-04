@@ -8,9 +8,9 @@ import ClipResizeHandle from "./ClipResizeHandle";
 import type { Clip as ClipType } from "@/types/timeline";
 
 const TRACK_COLORS: Record<string, string> = {
-  visual: "bg-blue-700 border-blue-500",
-  audio: "bg-green-700 border-green-500",
-  subtitle: "bg-purple-700 border-purple-500",
+  visual: "bg-blue-700 border-blue-500 hover:bg-blue-500",
+  audio: "bg-green-700 border-green-500 hover:bg-green-500",
+  subtitle: "bg-purple-700 border-purple-500 hover:bg-purple-500",
 };
 
 interface Props {
@@ -44,25 +44,22 @@ export default function Clip({ clip, trackType }: Props) {
       ? clip.media_type === "video" ? "Video" : "Image"
       : trackType === "audio"
       ? "Audio"
-      : "Sub";
+      : "Subtitle";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`
-        absolute top-1 bottom-1 rounded border ${colorClass}
-        ${isSelected ? "ring-2 ring-yellow-400" : ""}
-        overflow-hidden select-none cursor-grab active:cursor-grabbing
+        absolute top-0 bottom-0 rounded-none ${colorClass}
+        ${isSelected ? "border-2 border-white" : "border-0"}
+        overflow-hidden select-none cursor-default
       `}
       onClick={(e) => { e.stopPropagation(); selectClip(clip.id); }}
       {...listeners}
       {...attributes}
     >
       <ClipResizeHandle clipId={clip.id} side="left" />
-      <div className="px-2 py-0.5 text-xs text-white font-medium truncate pointer-events-none">
-        {label}
-      </div>
       <ClipResizeHandle clipId={clip.id} side="right" />
     </div>
   );

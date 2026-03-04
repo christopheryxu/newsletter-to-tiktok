@@ -2,17 +2,29 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 
+from ..config import settings
 from ..models.api import StartPipelineRequest, StartPipelineResponse, JobStatusResponse
 from ..models.pipeline import Job, JobStatus
 from ..services import job_store
 from ..workers.pipeline_worker import run_pipeline
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
+
+_LOG_FILE = Path(__file__).parent.parent.parent / "storage" / "jobs.log"
+
+
+def _log_job(job_id: str, url: str) -> None:
+    _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with _LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(f"{timestamp}  job_id={job_id}  url={url}\n")
 
 
 @router.post("/start", response_model=StartPipelineResponse)
@@ -23,6 +35,7 @@ async def start_pipeline(
     job_id = str(uuid.uuid4())
     job = Job(id=job_id, url=req.url)
     job_store.set_job(job)
+    _log_job(job_id, req.url)
     background_tasks.add_task(run_pipeline, job_id, req.url, req.voice_id)
     return StartPipelineResponse(job_id=job_id, status=JobStatus.PENDING)
 

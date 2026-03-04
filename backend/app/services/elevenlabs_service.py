@@ -1,10 +1,9 @@
 from __future__ import annotations
+import base64
 import subprocess
 import json
 import httpx
 from pathlib import Path
-
-from ..config import settings
 
 
 _BASE = "https://api.elevenlabs.io/v1"
@@ -15,18 +14,24 @@ _VOICE_MAP = {
     "Josh": "TxGEqnHWrfWFTfGW9XjX",
 }
 
+# (word, start_s, end_s)
+WordTimestamp = tuple[str, float, float]
 
-async def generate_audio(text: str, voice_id: str, dest_path: Path, api_key: str) -> bool:
+
+async def generate_audio(
+    text: str, voice_id: str, dest_path: Path, api_key: str
+) -> tuple[bool, list[WordTimestamp], float]:
+    """Generate audio via ElevenLabs with-timestamps endpoint.
+
+    Returns (success, word_timestamps, duration_s).
+    Falls back to the plain TTS endpoint if timestamps aren't available.
+    """
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Resolve friendly name to voice ID
     resolved = _VOICE_MAP.get(voice_id, voice_id)
 
-    url = f"{_BASE}/text-to-speech/{resolved}"
     headers = {
         "xi-api-key": api_key,
         "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
     }
     payload = {
         "text": text,
@@ -35,14 +40,72 @@ async def generate_audio(text: str, voice_id: str, dest_path: Path, api_key: str
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
+        # Try with-timestamps first
         try:
-            resp = await client.post(url, headers=headers, json=payload)
+            resp = await client.post(
+                f"{_BASE}/text-to-speech/{resolved}/with-timestamps",
+                headers=headers,
+                json=payload,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                audio_bytes = base64.b64decode(data["audio_base64"])
+                dest_path.write_bytes(audio_bytes)
+
+                alignment = data.get("alignment", {})
+                chars = alignment.get("characters", [])
+                starts = alignment.get("character_start_times_seconds", [])
+                ends = alignment.get("character_end_times_seconds", [])
+
+                words = _parse_word_timestamps(chars, starts, ends)
+                duration = float(ends[-1]) if ends else probe_duration(dest_path)
+                return True, words, duration
+        except Exception:
+            pass
+
+        # Fallback: plain TTS endpoint
+        try:
+            resp = await client.post(
+                f"{_BASE}/text-to-speech/{resolved}",
+                headers={**headers, "Accept": "audio/mpeg"},
+                json=payload,
+            )
             if resp.status_code == 200:
                 dest_path.write_bytes(resp.content)
-                return True
-            return False
+                duration = probe_duration(dest_path)
+                return True, [], duration
         except Exception:
-            return False
+            pass
+
+    return False, [], 0.0
+
+
+def _parse_word_timestamps(
+    chars: list[str], starts: list[float], ends: list[float]
+) -> list[WordTimestamp]:
+    """Group ElevenLabs character-level timestamps into word-level tuples."""
+    words: list[WordTimestamp] = []
+    current_word = ""
+    word_start: float | None = None
+    word_end: float | None = None
+
+    for char, start, end in zip(chars, starts, ends):
+        if char in (" ", "\n", "\t"):
+            if current_word and word_start is not None and word_end is not None:
+                words.append((current_word, word_start, word_end))
+            current_word = ""
+            word_start = None
+            word_end = None
+        else:
+            if word_start is None:
+                word_start = start
+            word_end = end
+            current_word += char
+
+    if current_word and word_start is not None and word_end is not None:
+        words.append((current_word, word_start, word_end))
+
+    return words
 
 
 def probe_duration(audio_path: Path) -> float:
@@ -62,7 +125,6 @@ def probe_duration(audio_path: Path) -> float:
             dur = stream.get("duration")
             if dur:
                 return float(dur)
-        # fallback: try format duration
         result2 = subprocess.run(
             [
                 "ffprobe", "-v", "quiet", "-print_format", "json",
@@ -78,4 +140,4 @@ def probe_duration(audio_path: Path) -> float:
             return float(dur)
     except Exception:
         pass
-    return 5.0  # safe default
+    return 5.0

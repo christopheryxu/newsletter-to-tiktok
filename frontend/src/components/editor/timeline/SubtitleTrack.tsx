@@ -14,10 +14,10 @@ export default function SubtitleTrack({ cues }: Props) {
   if (!active) return null;
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-[90%] text-center z-30 pointer-events-none">
-      <span className="bg-black/70 text-white text-lg font-semibold px-3 py-1 rounded">
+    <div className="absolute bottom-6 left-0 right-0 px-3 text-center z-30 pointer-events-none">
+      <div className="bg-black/70 text-white text-sm font-semibold px-3 py-1.5 rounded leading-snug">
         {active.text}
-      </span>
+      </div>
     </div>
   );
 }

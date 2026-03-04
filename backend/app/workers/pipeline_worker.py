@@ -80,19 +80,20 @@ async def run_pipeline(job_id: str, url: str, voice_id: str = "Rachel") -> None:
         audio_dir.mkdir(parents=True, exist_ok=True)
 
         audio_assets: list[AudioAsset] = []
+        section_word_timestamps: dict[str, list] = {}
         for sec in job.sections:
             audio_path = audio_dir / f"{sec.id}.mp3"
-            ok = await elevenlabs_service.generate_audio(
+            ok, words, duration = await elevenlabs_service.generate_audio(
                 sec.voice_script, voice_id, audio_path, settings.elevenlabs_api_key
             )
             if ok:
-                duration = elevenlabs_service.probe_duration(audio_path)
                 audio_assets.append(AudioAsset(
                     id=str(uuid.uuid4()),
                     section_id=sec.id,
                     local_path=str(audio_path),
                     duration_s=duration,
                 ))
+                section_word_timestamps[sec.id] = words
             else:
                 # Fallback: 5s placeholder
                 audio_assets.append(AudioAsset(
@@ -101,12 +102,13 @@ async def run_pipeline(job_id: str, url: str, voice_id: str = "Rachel") -> None:
                     local_path="",
                     duration_s=5.0,
                 ))
+                section_word_timestamps[sec.id] = []
         job.audio_assets = audio_assets
         job_store.set_job(job)
 
         # ── 5. BUILD TIMELINE ─────────────────────────────────────────
         await update(JobStatus.BUILD_TIMELINE, 85)
-        timeline = _build_initial_timeline(job)
+        timeline = _build_initial_timeline(job, section_word_timestamps)
         job.timeline = timeline
         job_store.set_job(job)
 
@@ -188,7 +190,7 @@ async def _fetch_media_for_section(sec: Section, media_dir: Path) -> MediaAsset 
     return None
 
 
-def _build_initial_timeline(job: Job) -> Timeline:
+def _build_initial_timeline(job: Job, section_word_timestamps: dict[str, list] | None = None) -> Timeline:
     visual_clips: list[Clip] = []
     audio_clips: list[Clip] = []
     subtitle_clips: list[Clip] = []
@@ -224,8 +226,12 @@ def _build_initial_timeline(job: Job) -> Timeline:
                 audio_path=audio.local_path,
             ))
 
-        # Subtitle cues: distribute words at ~7 words/cue
-        cues = _build_subtitle_cues(sec.voice_script, cursor, duration)
+        # Subtitle cues: use word timestamps if available, else distribute evenly
+        words = (section_word_timestamps or {}).get(sec.id, [])
+        if words:
+            cues = _build_subtitle_cues_from_words(words, cursor)
+        else:
+            cues = _build_subtitle_cues(sec.voice_script, cursor, duration)
         subtitle_clips.append(Clip(
             id=str(uuid.uuid4()),
             clip_type="subtitle",
@@ -249,6 +255,22 @@ def _build_initial_timeline(job: Job) -> Timeline:
         tracks=tracks,
         total_duration_s=cursor,
     )
+
+
+def _build_subtitle_cues_from_words(
+    words: list[tuple[str, float, float]], section_start: float, words_per_cue: int = 7
+) -> list[SubtitleCue]:
+    """Build subtitle cues using ElevenLabs word-level timestamps."""
+    cues: list[SubtitleCue] = []
+    for i in range(0, len(words), words_per_cue):
+        chunk = words[i : i + words_per_cue]
+        if not chunk:
+            continue
+        cue_start = section_start + chunk[0][1]
+        cue_end = section_start + chunk[-1][2]
+        text = " ".join(w[0] for w in chunk)
+        cues.append(SubtitleCue(start_s=cue_start, end_s=cue_end, text=text))
+    return cues
 
 
 def _build_subtitle_cues(text: str, start_s: float, total_dur: float) -> list[SubtitleCue]:

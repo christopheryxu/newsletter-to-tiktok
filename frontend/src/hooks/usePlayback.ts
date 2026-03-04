@@ -6,26 +6,43 @@ import { useTimelineStore } from "@/store/timelineStore";
 import { getMediaUrl } from "@/lib/api";
 
 export function usePlayback(jobId: string) {
-  const { timeline, isPlaying, currentTime, setCurrentTime, setPlaying } = useTimelineStore();
+  const { timeline, isPlaying, currentTime, setCurrentTime, setPlaying, updateAudioDurations } = useTimelineStore();
   const howlsRef = useRef<Howl[]>([]);
   const rafRef = useRef<number>(0);
   const startWallRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
 
-  // Build Howl instances when timeline changes
+  // Build Howl instances when timeline changes; read real durations on load
   useEffect(() => {
     howlsRef.current.forEach((h) => h.unload());
     howlsRef.current = [];
     if (!timeline) return;
 
     const audioTrack = timeline.tracks.find((t) => t.track_type === "audio");
-    if (!audioTrack) return;
+    if (!audioTrack || audioTrack.clips.length === 0) return;
+
+    const sectionDurations: Record<string, number> = {};
+    let loadedCount = 0;
+    const total = audioTrack.clips.filter((c) => !!c.audio_path).length;
 
     for (const clip of audioTrack.clips) {
       if (!clip.audio_path) continue;
       const filename = clip.audio_path.split(/[\\/]/).pop()!;
       const url = getMediaUrl(jobId, "audio", filename);
-      const howl = new Howl({ src: [url], preload: true });
+      const sectionId = clip.section_id;
+      const howl = new Howl({
+        src: [url],
+        preload: true,
+        onload() {
+          if (sectionId) {
+            sectionDurations[sectionId] = howl.duration();
+          }
+          loadedCount++;
+          if (loadedCount === total) {
+            updateAudioDurations(sectionDurations);
+          }
+        },
+      });
       howlsRef.current.push(howl);
     }
   }, [timeline, jobId]);

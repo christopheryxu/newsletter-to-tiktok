@@ -9,33 +9,50 @@ export function useJobStatus(jobId: string | null) {
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const doneRef = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!jobId) return;
-    if (esRef.current) esRef.current.close();
+    doneRef.current = false;
 
-    const es = new EventSource(`/api/pipeline/${jobId}/stream`);
-    esRef.current = es;
+    function connect() {
+      if (doneRef.current) return;
+      if (esRef.current) esRef.current.close();
 
-    es.onmessage = (e) => {
-      try {
-        const data: SSEEvent = JSON.parse(e.data);
-        if (data.ping) return;
-        setStatus(data.status);
-        setProgress(data.progress ?? 0);
-        if (data.timeline) setTimeline(data.timeline);
-        if (data.error) setError(data.error);
-        if (data.status === "ready" || data.status === "error") {
-          es.close();
+      const es = new EventSource(`/api/pipeline/${jobId}/stream`);
+      esRef.current = es;
+
+      es.onmessage = (e) => {
+        try {
+          const data: SSEEvent = JSON.parse(e.data);
+          if (data.ping) return;
+          setStatus(data.status);
+          setProgress(data.progress ?? 0);
+          if (data.timeline) setTimeline(data.timeline);
+          if (data.error) setError(data.error);
+          if (data.status === "ready" || data.status === "error") {
+            doneRef.current = true;
+            es.close();
+          }
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es.close();
+        if (!doneRef.current) {
+          retryTimer.current = setTimeout(connect, 2000);
         }
-      } catch {}
-    };
+      };
+    }
 
-    es.onerror = () => {
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      doneRef.current = true;
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      esRef.current?.close();
+    };
   }, [jobId]);
 
   return { status, progress, timeline, error };

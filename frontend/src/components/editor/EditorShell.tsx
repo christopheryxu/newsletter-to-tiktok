@@ -35,14 +35,13 @@ export default function EditorShell({ jobId }: Props) {
   const isReady = status === "ready" || storedTimeline !== null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-white">
+    <div className="flex flex-col h-screen bg-gray-950 text-white cursor-default">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="font-bold text-lg bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-            NewsletterToTikTok
+            Newsletter → TikTok
           </span>
-          <span className="text-xs text-gray-400 font-mono">{jobId.slice(0, 8)}</span>
         </div>
 
         {!isReady && (
@@ -81,12 +80,12 @@ export default function EditorShell({ jobId }: Props) {
           </div>
 
           {/* Center: Timeline */}
-          <div className="flex-1 overflow-hidden p-2">
+          <div className="flex-1 overflow-hidden flex flex-col justify-end pb-4 bg-gray-900">
             <TimelineEditor />
           </div>
 
           {/* Right: Inspector */}
-          <div className="w-64 flex-shrink-0 border-l border-gray-700 bg-gray-900 overflow-y-auto">
+          <div className="w-64 flex-shrink-0 border-l border-gray-700 bg-gray-900 flex flex-col overflow-hidden">
             <ClipInspector />
           </div>
         </div>

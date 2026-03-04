@@ -36,25 +36,31 @@ export default function TimelineEditor() {
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div
-        className="flex flex-col h-full overflow-auto bg-gray-900 rounded-lg border border-gray-700"
+        className="flex flex-col overflow-auto bg-gray-950"
         ref={scrollRef}
         onClick={() => selectClip(null)}
       >
-        {/* Ruler */}
-        <div className="overflow-x-auto">
-          <TimelineRuler totalDuration={timeline.total_duration_s} />
-        </div>
-
-        {/* Tracks */}
-        <div className="relative overflow-x-auto">
-          <PlayheadMarker />
-          {timeline.tracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              totalDuration={timeline.total_duration_s}
-            />
-          ))}
+        {/* Ruler + Tracks — container is flipped so scrollbar appears on top */}
+        <div data-timeline-scroll className="overflow-x-auto flex-1 [transform:scaleY(-1)]
+          [&::-webkit-scrollbar]:h-1.5
+          [&::-webkit-scrollbar-track]:bg-transparent
+          [&::-webkit-scrollbar-thumb]:bg-gray-600
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb:hover]:bg-gray-400
+        ">
+          <div className="[transform:scaleY(-1)]">
+            <TimelineRuler totalDuration={timeline.total_duration_s} />
+            <div className="relative">
+              <PlayheadMarker />
+              {timeline.tracks.map((track) => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  totalDuration={timeline.total_duration_s}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </DndContext>

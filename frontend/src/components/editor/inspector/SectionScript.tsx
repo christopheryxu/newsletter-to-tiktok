@@ -34,15 +34,24 @@ export default function SectionScript({ sectionId, initialScript }: Props) {
   }, [initialScript]);
 
   return (
-    <div className="flex flex-col gap-2">
-      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+    <div className="flex flex-col flex-1 min-h-0 px-4 pb-4 gap-2">
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">
         Voice Script
       </label>
       <textarea
         value={script}
         onChange={(e) => handleChange(e.target.value)}
-        rows={6}
-        className="w-full rounded bg-gray-800 border border-gray-600 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-y"
+        className="
+          flex-1 min-h-0 w-full rounded bg-gray-800 border border-gray-600
+          px-3 py-2 text-xs text-white placeholder-gray-500 resize-none
+          focus:outline-none focus:ring-2 focus:ring-pink-500
+          scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent
+          [&::-webkit-scrollbar]:w-1.5
+          [&::-webkit-scrollbar-track]:bg-transparent
+          [&::-webkit-scrollbar-thumb]:bg-gray-600
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb:hover]:bg-gray-400
+        "
       />
     </div>
   );

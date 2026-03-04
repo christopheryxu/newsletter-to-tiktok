@@ -17,6 +17,7 @@ interface TimelineState {
 
   moveClip: (clipId: string, deltaSecs: number) => void;
   resizeClip: (clipId: string, side: "left" | "right", deltaSecs: number) => void;
+  updateAudioDurations: (sectionDurations: Record<string, number>) => void;
 
   syncToBackend: () => Promise<void>;
 }
@@ -70,6 +71,44 @@ export const useTimelineStore = create<TimelineState>()(
         _recalcDuration(s.timeline);
       });
       _scheduleSyncToBackend(get);
+    },
+
+    updateAudioDurations: (sectionDurations) => {
+      set((s) => {
+        if (!s.timeline) return;
+        const audioTrack = s.timeline.tracks.find((t) => t.track_type === "audio");
+        if (!audioTrack) return;
+
+        let cursor = 0;
+        for (const audioClip of audioTrack.clips) {
+          const sectionId = audioClip.section_id;
+          if (!sectionId) { cursor += audioClip.duration_s; continue; }
+
+          const newDuration = sectionDurations[sectionId] ?? audioClip.duration_s;
+          const oldDuration = audioClip.duration_s;
+          const scale = oldDuration > 0 ? newDuration / oldDuration : 1;
+
+          for (const track of s.timeline.tracks) {
+            for (const clip of track.clips) {
+              if (clip.section_id !== sectionId) continue;
+              const oldClipStart = clip.start_s;
+              clip.start_s = cursor;
+              clip.duration_s = newDuration;
+              // Scale subtitle cue timings proportionally
+              if (clip.cues && clip.cues.length > 0) {
+                for (const cue of clip.cues) {
+                  const relStart = cue.start_s - oldClipStart;
+                  const relEnd = cue.end_s - oldClipStart;
+                  cue.start_s = cursor + relStart * scale;
+                  cue.end_s = cursor + relEnd * scale;
+                }
+              }
+            }
+          }
+          cursor += newDuration;
+        }
+        _recalcDuration(s.timeline);
+      });
     },
 
     syncToBackend: async () => {
